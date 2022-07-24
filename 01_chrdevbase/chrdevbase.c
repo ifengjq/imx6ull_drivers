@@ -4,7 +4,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-#define CHRDEVBASE_MAJOR 200    /* 主设备号 */
 #define CHRDEVBASE_NAME "chrdevbase"    /* 设备名 */
 
 #define BUF_SIZE 128    /* 缓存区大小 */
@@ -18,6 +17,7 @@ struct chrdevbase_data {
 	int len;
 };
 
+static int major = 0;
 static struct chrdevbase_data kdata;
 
 /**
@@ -119,8 +119,6 @@ static struct file_operations chrdevbase_ops = {
  */
 int __init chrdevbase_init(void)
 {
-	int ret = 0;
-
 	/* 分配内存 */
 	kdata.buf = (char *)kmalloc(BUF_SIZE, GFP_KERNEL);
 	if (NULL == kdata.buf) {
@@ -130,12 +128,12 @@ int __init chrdevbase_init(void)
 	kdata.len = 0;
 
 	/* 注册驱动 */
-	ret = register_chrdev(CHRDEVBASE_MAJOR, CHRDEVBASE_NAME, &chrdevbase_ops);
-	if (ret < 0) {
+	major = register_chrdev(0, CHRDEVBASE_NAME, &chrdevbase_ops);
+	if (major < 0) {
 		pr_err("%s register failed\n", CHRDEVBASE_NAME);
-		return -1;
+		return major;
 	}
-	pr_info("%s major: %d\n", CHRDEVBASE_NAME, CHRDEVBASE_MAJOR);
+	pr_info("%s major: %d\n", CHRDEVBASE_NAME, major);
 
 	return 0;
 }
@@ -146,7 +144,7 @@ int __init chrdevbase_init(void)
  */
 void __exit chrdevbase_exit(void)
 {
-	unregister_chrdev(CHRDEVBASE_MAJOR, CHRDEVBASE_NAME);
+	unregister_chrdev(major, CHRDEVBASE_NAME);
 	pr_info("hello_drv exit\n");
 
 	if (NULL != kdata.buf) {
