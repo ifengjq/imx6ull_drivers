@@ -14,8 +14,8 @@
  * 
  */
 struct chrdevbase_data {
-	char *buf;
-	int len;
+    char *buf;
+    int len;
 };
 
 static int major = 0;
@@ -32,9 +32,9 @@ static struct device *chrdevbase_dev;
  */
 static int chrdevbase_open(struct inode *inode, struct file *filp)
 {
-	pr_info("%s entry!\n", __FUNCTION__);
+    pr_info("%s entry!\n", __FUNCTION__);
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -47,18 +47,18 @@ static int chrdevbase_open(struct inode *inode, struct file *filp)
  * @return ssize_t 读取的字节数，如果为负值，表示读取失败
  */
 static ssize_t chrdevbase_read(struct file *filp, char __user *buf,
-						size_t size, loff_t *offset)
+                        size_t size, loff_t *offset)
 {
-	int len = (kdata.len < size ? kdata.len : size);
+    int len = (kdata.len < size ? kdata.len : size);
 
-	pr_info("%s entry!\n", __FUNCTION__);
+    pr_info("%s entry!\n", __FUNCTION__);
 
-	if (copy_to_user(buf, kdata.buf, len)) {
-		pr_err("copy_to_user error!\n");
-		return -ENOMEM;
-	}
+    if (copy_to_user(buf, kdata.buf, len)) {
+        pr_err("copy_to_user error!\n");
+        return -ENOMEM;
+    }
 
-	return len;
+    return len;
 }
 
 /**
@@ -71,20 +71,20 @@ static ssize_t chrdevbase_read(struct file *filp, char __user *buf,
  * @return ssize_t 写入的字节数，如果为负值，表示写入失败
  */
 static ssize_t chrdevbase_write(struct file *filp, const char __user *buf,
-						size_t size, loff_t *offset)
+                        size_t size, loff_t *offset)
 {
-	int len = (size < BUF_SIZE ? size : BUF_SIZE);
+    int len = (size < BUF_SIZE ? size : BUF_SIZE);
 
-	pr_info("%s entry!\n", __FUNCTION__);
+    pr_info("%s entry!\n", __FUNCTION__);
 
-	if (copy_from_user(kdata.buf, buf, len)) {
-		pr_err("copy_from_user error!\n");
-		return -ENOMEM;
-	}
+    if (copy_from_user(kdata.buf, buf, len)) {
+        pr_err("copy_from_user error!\n");
+        return -ENOMEM;
+    }
 
-	kdata.len = len;
+    kdata.len = len;
 
-	return len;
+    return len;
 
 }
 
@@ -97,9 +97,9 @@ static ssize_t chrdevbase_write(struct file *filp, const char __user *buf,
  */
 static int chrdevbase_release(struct inode *inode, struct file *filp)
 {
-	pr_info("%s entry!\n", __FUNCTION__);
+    pr_info("%s entry!\n", __FUNCTION__);
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -107,11 +107,11 @@ static int chrdevbase_release(struct inode *inode, struct file *filp)
  * 
  */
 static struct file_operations chrdevbase_ops = {
-	.owner = THIS_MODULE,
-	.open = chrdevbase_open,
-	.read = chrdevbase_read,
-	.write = chrdevbase_write,
-	.release = chrdevbase_release,
+    .owner = THIS_MODULE,
+    .open = chrdevbase_open,
+    .read = chrdevbase_read,
+    .write = chrdevbase_write,
+    .release = chrdevbase_release,
 };
 
 /**
@@ -122,56 +122,56 @@ static struct file_operations chrdevbase_ops = {
  */
 int __init chrdevbase_init(void)
 {
-	int ret = 0;
-	
-	/* 分配内存 */
-	kdata.buf = (char *)kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (!kdata.buf) {
-		pr_err("kmalloc buf failed!\n");
-		ret = -ENOMEM;
-		goto err_kmalloc_buf;
-	}
-	kdata.len = 0;
+    int ret = 0;
+    
+    /* 分配内存 */
+    kdata.buf = (char *)kmalloc(BUF_SIZE, GFP_KERNEL);
+    if (!kdata.buf) {
+        pr_err("kmalloc buf failed!\n");
+        ret = -ENOMEM;
+        goto err_kmalloc_buf;
+    }
+    kdata.len = 0;
 
-	/* 注册驱动 */
-	ret = register_chrdev(0, CHRDEVBASE_NAME, &chrdevbase_ops);
-	if (ret < 0) {
-		pr_err("%s register failed\n", CHRDEVBASE_NAME);
-		goto err_register_chrdev;
-	}
-	major = ret;
-	pr_info("%s major: %d\n", CHRDEVBASE_NAME, major);
+    /* 注册驱动 */
+    ret = register_chrdev(0, CHRDEVBASE_NAME, &chrdevbase_ops);
+    if (ret < 0) {
+        pr_err("%s register failed\n", CHRDEVBASE_NAME);
+        goto err_register_chrdev;
+    }
+    major = ret;
+    pr_info("%s major: %d\n", CHRDEVBASE_NAME, major);
 
-	/* /sys/class/chrdevbase */
-	chrdevbase_class = class_create(THIS_MODULE, CHRDEVBASE_NAME);
-	if (IS_ERR(chrdevbase_class)) {
-		pr_err("class create failed\n");
-		ret = PTR_ERR(chrdevbase_class);
-		goto err_class_create;
-	}
-	
-	/* /dev/chrdevbase */
-	chrdevbase_dev = device_create(chrdevbase_class, NULL,
-						MKDEV(major, 0), NULL, CHRDEVBASE_NAME);
-	if (IS_ERR(chrdevbase_dev)) {
-		pr_err("class create failed\n");
-		ret = PTR_ERR(chrdevbase_dev);
-		goto err_device_create;
-	}
+    /* /sys/class/chrdevbase */
+    chrdevbase_class = class_create(THIS_MODULE, CHRDEVBASE_NAME);
+    if (IS_ERR(chrdevbase_class)) {
+        pr_err("class create failed\n");
+        ret = PTR_ERR(chrdevbase_class);
+        goto err_class_create;
+    }
+    
+    /* /dev/chrdevbase */
+    chrdevbase_dev = device_create(chrdevbase_class, NULL,
+                        MKDEV(major, 0), NULL, CHRDEVBASE_NAME);
+    if (IS_ERR(chrdevbase_dev)) {
+        pr_err("class create failed\n");
+        ret = PTR_ERR(chrdevbase_dev);
+        goto err_device_create;
+    }
 
-	return 0;
-	
+    return 0;
+    
 err_device_create:
-	class_destroy(chrdevbase_class);
+    class_destroy(chrdevbase_class);
 
 err_class_create:
-	unregister_chrdev(major, CHRDEVBASE_NAME);
+    unregister_chrdev(major, CHRDEVBASE_NAME);
 
 err_register_chrdev:
-	kfree(kdata.buf);
+    kfree(kdata.buf);
 
 err_kmalloc_buf:
-	return ret;
+    return ret;
 }
 
 /**
@@ -180,14 +180,14 @@ err_kmalloc_buf:
  */
 void __exit chrdevbase_exit(void)
 {
-	pr_info("chrdevbase exit\n");
+    pr_info("chrdevbase exit\n");
 
-	device_destroy(chrdevbase_class, MKDEV(major, 0));
-	class_destroy(chrdevbase_class);
-	unregister_chrdev(major, CHRDEVBASE_NAME);
-	
-	if (!kdata.buf)
-		kfree(kdata.buf);
+    device_destroy(chrdevbase_class, MKDEV(major, 0));
+    class_destroy(chrdevbase_class);
+    unregister_chrdev(major, CHRDEVBASE_NAME);
+    
+    if (!kdata.buf)
+        kfree(kdata.buf);
 }
 
 module_init(chrdevbase_init);
