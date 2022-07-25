@@ -1,3 +1,4 @@
+#include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -19,6 +20,8 @@ struct chrdevbase_data {
 
 static int major = 0;
 static struct chrdevbase_data kdata;
+static struct class *chrdevbase_class;
+static struct device *chrdevbase_dev;
 
 /**
  * @brief 打开设备
@@ -119,23 +122,56 @@ static struct file_operations chrdevbase_ops = {
  */
 int __init chrdevbase_init(void)
 {
+	int ret = 0;
+	
 	/* 分配内存 */
 	kdata.buf = (char *)kmalloc(BUF_SIZE, GFP_KERNEL);
-	if (NULL == kdata.buf) {
+	if (!kdata.buf) {
 		pr_err("kmalloc buf failed!\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_kmalloc_buf;
 	}
 	kdata.len = 0;
 
 	/* 注册驱动 */
-	major = register_chrdev(0, CHRDEVBASE_NAME, &chrdevbase_ops);
-	if (major < 0) {
+	ret = register_chrdev(0, CHRDEVBASE_NAME, &chrdevbase_ops);
+	if (ret < 0) {
 		pr_err("%s register failed\n", CHRDEVBASE_NAME);
-		return major;
+		goto err_register_chrdev;
 	}
+	major = ret;
 	pr_info("%s major: %d\n", CHRDEVBASE_NAME, major);
 
+	/* /sys/class/chrdevbase */
+	chrdevbase_class = class_create(THIS_MODULE, CHRDEVBASE_NAME);
+	if (IS_ERR(chrdevbase_class)) {
+		pr_err("class create failed\n");
+		ret = PTR_ERR(chrdevbase_class);
+		goto err_class_create;
+	}
+	
+	/* /dev/chrdevbase */
+	chrdevbase_dev = device_create(chrdevbase_class, NULL,
+						MKDEV(major, 0), NULL, CHRDEVBASE_NAME);
+	if (IS_ERR(chrdevbase_dev)) {
+		pr_err("class create failed\n");
+		ret = PTR_ERR(chrdevbase_dev);
+		goto err_device_create;
+	}
+
 	return 0;
+	
+err_device_create:
+	class_destroy(chrdevbase_class);
+
+err_class_create:
+	unregister_chrdev(major, CHRDEVBASE_NAME);
+
+err_register_chrdev:
+	kfree(kdata.buf);
+
+err_kmalloc_buf:
+	return ret;
 }
 
 /**
@@ -144,13 +180,14 @@ int __init chrdevbase_init(void)
  */
 void __exit chrdevbase_exit(void)
 {
-	unregister_chrdev(major, CHRDEVBASE_NAME);
-	pr_info("hello_drv exit\n");
+	pr_info("chrdevbase exit\n");
 
-	if (NULL != kdata.buf) {
+	device_destroy(chrdevbase_class, MKDEV(major, 0));
+	class_destroy(chrdevbase_class);
+	unregister_chrdev(major, CHRDEVBASE_NAME);
+	
+	if (!kdata.buf)
 		kfree(kdata.buf);
-		pr_info("free buff ok!\n");
-	}
 }
 
 module_init(chrdevbase_init);
